@@ -18,8 +18,8 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-.stApp { background: #f8fafc; }
-.block-container { padding-top: 1.6rem; padding-bottom: 2rem; max-width: 1400px; }
+.stApp { background: #f8fafc; padding-top: 1rem; }
+.block-container { padding-top: 3.5rem; padding-bottom: 3rem; max-width: 1400px; }
 [data-testid="stSidebar"] { background: #0f172a; border-right: 1px solid #1e293b; }
 [data-testid="stSidebar"] * { color: #cbd5e1 !important; }
 [data-testid="stSidebar"] .stRadio > label { color: #64748b !important; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; }
@@ -185,7 +185,8 @@ def style_plot(fig, height=400):
         plot_bgcolor="white",
         paper_bgcolor="white",
         font=dict(family="Inter", color=C_DARK, size=12),
-        margin=dict(l=20, r=20, t=50, b=20),
+        margin=dict(l=20, r=20, t=80, b=20),
+        title=dict(y=0.95, x=0.5, xanchor='center', yanchor='top'),
         xaxis=dict(gridcolor=C_GRID, linecolor=C_GRID),
         yaxis=dict(gridcolor=C_GRID, linecolor=C_GRID),
         legend=dict(bgcolor="rgba(0,0,0,0)"),
