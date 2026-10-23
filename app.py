@@ -34,6 +34,7 @@ h1, h2, h3, h4 { color: #1e3a8a; font-weight: 700; }
 .note { background: #fffbeb; border-left: 3px solid #d97706; padding: 12px 16px; border-radius: 6px; color: #78350f; font-size: 0.85rem; line-height: 1.55; margin-top: 12px; }
 .caveat { background: #fef2f2; border-left: 3px solid #dc2626; padding: 12px 16px; border-radius: 6px; color: #7f1d1d; font-size: 0.85rem; line-height: 1.55; margin-top: 12px; }
 .quality { background: #f0f9ff; border-left: 3px solid #0284c7; padding: 12px 16px; border-radius: 6px; color: #0c4a6e; font-size: 0.85rem; line-height: 1.55; margin-top: 12px; }
+.method { background: #f8fafc; border-left: 3px solid #64748b; padding: 10px 14px; border-radius: 6px; color: #334155; font-size: 0.82rem; line-height: 1.5; margin-top: 6px; }
 .sidebar-title { color: #1e3a8a; margin: 0; font-size: 1.05rem; font-weight: 800; }
 .sidebar-sub { color: #64748b; font-size: 0.72rem; margin-top: 2px; }
 .stTabs [data-baseweb="tab-list"] { gap: 10px; background: transparent; border-bottom: none; padding: 4px 0; }
@@ -95,8 +96,7 @@ def _normalize_barangay(name):
     key = name.strip().lower().replace("  ", " ")
     if key in BARANGAY_ALIASES:
         return BARANGAY_ALIASES[key]
-    key2 = key.replace(" ", "")
-    return BARANGAY_ALIASES.get(key2, name.strip())
+    return BARANGAY_ALIASES.get(key.replace(" ", ""), name.strip())
 
 
 def _normalize_variety(name):
@@ -480,17 +480,46 @@ def build_features(frame):
 
 
 def compute_metrics(y_true, y_pred):
-    y_true = np.asarray(y_true)
-    y_pred = np.asarray(y_pred)
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
     rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
     mae = float(mean_absolute_error(y_true, y_pred))
     mask = y_true > 0
-    if mask.sum() > 0:
-        mape = float(mean_absolute_percentage_error(y_true[mask], y_pred[mask]) * 100)
-    else:
-        mape = np.nan
-    r2 = float(r2_score(y_true, y_pred))
+    mape = float(mean_absolute_percentage_error(y_true[mask], y_pred[mask]) * 100) if mask.sum() > 0 else np.nan
+    r2 = float(r2_score(y_true, y_pred)) if len(y_true) > 1 else np.nan
     return {"RMSE": rmse, "MAE": mae, "MAPE (%)": mape, "R2": r2, "MAPE_n": int(mask.sum())}
+
+
+def forecast_all_methods(values, periods):
+    """Return dict of method name -> projected next-period value."""
+    vals = np.asarray(values, dtype=float)
+    n = len(vals)
+    last = float(vals[-1])
+    results = {}
+
+    results["Naive (last value)"] = last
+    results["Mean of observed periods"] = float(vals.mean())
+
+    if n >= 2 and vals[-2] > 0:
+        ratio = vals[-1] / vals[-2]
+        results["Growth-rate extrapolation"] = float(vals[-1] * ratio)
+    else:
+        results["Growth-rate extrapolation"] = np.nan
+
+    if n >= 2:
+        t_idx = np.arange(n).reshape(-1, 1)
+        lr = LinearRegression().fit(t_idx, vals)
+        results["Linear trend (TAF)"] = float(lr.predict([[n]])[0])
+    else:
+        results["Linear trend (TAF)"] = np.nan
+
+    try:
+        am = ARIMA(vals, order=(0, 1, 0)).fit()
+        results["ARIMA (0,1,0)"] = float(am.forecast(steps=1)[0])
+    except Exception:
+        results["ARIMA (0,1,0)"] = last
+
+    return results
 
 
 def style_plot(fig, height=400):
@@ -572,10 +601,10 @@ with tabs[0]:
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"<div class='metric-card'><div class='metric-label'>Farmers</div><div class='metric-value'>{n_farmers:,}</div><div class='metric-sub'>{n_records} records</div></div>", unsafe_allow_html=True)
     c2.markdown(f"<div class='metric-card'><div class='metric-label'>Total trees</div><div class='metric-value'>{total_trees:,}</div><div class='metric-sub'>across records</div></div>", unsafe_allow_html=True)
-    c3.markdown(f"<div class='metric-card'><div class='metric-label'>Total production</div><div class='metric-value'>{total_prod:,.0f} kg</div><div class='metric-sub'>{n_with_volume} records with volume</div></div>", unsafe_allow_html=True)
-    c4.markdown(f"<div class='metric-card'><div class='metric-label'>Avg yield per farmer</div><div class='metric-value'>{avg_per_farmer:,.1f} kg</div><div class='metric-sub'>total / farmer count</div></div>", unsafe_allow_html=True)
+    c3.markdown(f"<div class='metric-card'><div class='metric-label'>Total production</div><div class='metric-value'>{total_prod:,.0f} kg</div><div class='metric-sub'>{n_with_volume} with volume</div></div>", unsafe_allow_html=True)
+    c4.markdown(f"<div class='metric-card'><div class='metric-label'>Avg per farmer</div><div class='metric-value'>{avg_per_farmer:,.1f} kg</div><div class='metric-sub'>total / farmer count</div></div>", unsafe_allow_html=True)
 
-    st.markdown(f"<div class='quality'>Data quality: {quality['kept']} records retained; {quality['dropped_barangay']} dropped by barangay whitelist; {quality['dropped_trees']} dropped for missing tree count. Among the {n_records} retained, {n_with_volume} have a recorded market volume. The mean recorded volume is <b>{avg_per_recorded:,.1f} kg</b>; the total divided by farmer count is <b>{avg_per_farmer:,.1f} kg</b>. Both are reported because the two denominators answer different questions.</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='quality'>Data quality: {quality['kept']} records retained; {quality['dropped_barangay']} dropped by barangay whitelist; {quality['dropped_trees']} dropped for missing tree count. Among the {n_records} retained, {n_with_volume} have a recorded market volume. The mean recorded volume is <b>{avg_per_recorded:,.1f} kg</b>; the total divided by farmer count is <b>{avg_per_farmer:,.1f} kg</b>. Both are shown because the two denominators answer different questions.</div>", unsafe_allow_html=True)
 
     col1, col2 = st.columns([1.3, 1])
     with col1:
@@ -749,19 +778,22 @@ with tabs[3]:
 
     st.markdown(f"<div class='note'>Lowest MAPE is achieved by <b>{best}</b>. Random Forest and Linear Regression use 5-fold cross-validation on {len(feat)} farm-level records; MAPE is computed only on rows with positive actual production ({rf_m['MAPE_n']} records), since percentage error is undefined at zero. ARIMA is fit on {len(period_series)} aggregated period totals and its residual error reflects the two-point series limitation. R2 is reported alongside because MAPE is sensitive to small denominators.</div>", unsafe_allow_html=True)
 
-    st.markdown(f"<div class='caveat'><b>ARIMA caveat:</b> With only {len(period_series)} observation periods available, ARIMA(0,1,0) reduces to a random walk in which the forecast equals the last observed value. This is a directional signal, not a reliable point estimate. A meaningful ARIMA analysis requires a longer continuous series.</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='caveat'><b>Modeling caveat:</b> Random Forest and Linear Regression solve a <i>cross-sectional</i> prediction problem (given a farm profile, predict its production). ARIMA solves a <i>temporal</i> forecasting problem (given past period totals, predict the next). These are different tasks, so comparing their metrics directly is only partially meaningful. The Random Forest metrics are the trustworthy ones; the ARIMA row is shown for completeness.</div>", unsafe_allow_html=True)
 
 with tabs[4]:
-    period_series = d.groupby("period", as_index=False)["production_kg"].sum().sort_values("period")
+    period_series = (d.groupby("period", as_index=False)["production_kg"].sum()
+                     .sort_values("period").reset_index(drop=True))
+
     if len(period_series) < 2:
         st.warning("At least two periods are required to produce a forecast.")
         st.stop()
 
-    try:
-        am = ARIMA(period_series["production_kg"].values, order=(0, 1, 0)).fit()
-        arima_next = float(am.forecast(steps=1)[0])
-    except Exception:
-        arima_next = float(period_series["production_kg"].iloc[-1])
+    values = period_series["production_kg"].values
+    periods = period_series["period"].tolist()
+    last_value = float(values[-1])
+    last_period = periods[-1]
+
+    method_results = forecast_all_methods(values, periods)
 
     feat, X, y = build_features(d)
     rf_next = np.nan
@@ -771,33 +803,72 @@ with tabs[4]:
         oof_pred = cross_val_predict(rf, X, y, cv=kf)
         rf_next = float(np.clip(oof_pred, 0, None).sum())
 
-    last_label = period_series["period"].iloc[-1]
-    next_label = "Projected next period"
+    st.markdown("### Projection by method")
+    assumption_map = {
+        "Naive (last value)": "Next period equals the last observed level; no trend, no seasonality.",
+        "Mean of observed periods": "Next period equals the historical average; smooths both observations.",
+        "Growth-rate extrapolation": "The percentage change between the two periods repeats.",
+        "Linear trend (TAF)": "A straight line through the two periods continues linearly.",
+        "ARIMA (0,1,0)": "Random walk; forecast equals the last observed value.",
+    }
+    rows = []
+    for name, val in method_results.items():
+        rows.append({"Method": name, "Projection (kg)": val, "Assumption": assumption_map.get(name, "")})
+    methods_df = pd.DataFrame(rows)
+    st.dataframe(methods_df.style.format({"Projection (kg)": "{:,.0f}"}),
+                 use_container_width=True, hide_index=True)
+
+    valid = [v for v in method_results.values() if not np.isnan(v)]
+    if valid:
+        st.markdown(f"<div class='note'>Time-series projections range from <b>{min(valid):,.0f} kg</b> to <b>{max(valid):,.0f} kg</b> across the five methods. The spread is the honest measure of uncertainty: with only {len(period_series)} observation periods, no method can resolve seasonality, and none can be validated by cross-validation on such a short series. Report the range, not a single point.</div>", unsafe_allow_html=True)
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=period_series["period"], y=period_series["production_kg"],
-                             mode="lines+markers", name="Actual",
-                             line=dict(color=C_PRIMARY, width=3), marker=dict(size=12)))
-    fig.add_trace(go.Scatter(x=[last_label, next_label],
-                             y=[period_series["production_kg"].iloc[-1], arima_next],
-                             mode="lines+markers", name="ARIMA (random walk)",
-                             line=dict(color=C_ACCENT, width=3, dash="dash"),
-                             marker=dict(size=12, symbol="diamond")))
+    fig.add_trace(go.Scatter(x=periods, y=values, mode="lines+markers", name="Actual",
+                             line=dict(color=C_PRIMARY, width=4), marker=dict(size=14)))
+    projection_colors = {
+        "Naive (last value)": "#64748b",
+        "Mean of observed periods": "#14b8a6",
+        "Growth-rate extrapolation": "#8b5cf6",
+        "Linear trend (TAF)": C_ACCENT,
+        "ARIMA (0,1,0)": "#ef4444",
+    }
+    projection_dash = {
+        "Naive (last value)": "longdash",
+        "Mean of observed periods": "longdash",
+        "Growth-rate extrapolation": "dashdot",
+        "Linear trend (TAF)": "dash",
+        "ARIMA (0,1,0)": "dot",
+    }
+    next_label = "Projected"
+    for name, val in method_results.items():
+        if np.isnan(val):
+            continue
+        fig.add_trace(go.Scatter(
+            x=[last_period, next_label], y=[last_value, val],
+            mode="lines+markers", name=name,
+            line=dict(color=projection_colors[name], width=2, dash=projection_dash[name]),
+            marker=dict(size=10),
+        ))
     if not np.isnan(rf_next):
-        fig.add_trace(go.Scatter(x=[last_label, next_label],
-                                 y=[period_series["production_kg"].iloc[-1], rf_next],
-                                 mode="lines+markers", name="RF (out-of-fold total)",
-                                 line=dict(color=C_TERTIARY, width=3, dash="dot"),
-                                 marker=dict(size=12, symbol="square")))
-    fig.update_layout(title="Production trajectory and next-period projection", xaxis_title="", yaxis_title="Production (kg)")
-    st.plotly_chart(style_plot(fig, height=440), use_container_width=True)
+        fig.add_trace(go.Scatter(
+            x=[next_label], y=[rf_next], mode="markers", name="RF out-of-fold total",
+            marker=dict(size=18, color=C_TERTIARY, symbol="star", line=dict(width=2, color="white")),
+        ))
+    fig.update_layout(title="Production trajectory with all projection methods",
+                      xaxis_title="", yaxis_title="Production (kg)")
+    st.plotly_chart(style_plot(fig, height=500), use_container_width=True)
 
-    c1, c2 = st.columns(2)
-    c1.markdown(f"<div class='metric-card'><div class='metric-label'>ARIMA projected production</div><div class='metric-value'>{arima_next:,.0f} kg</div><div class='metric-sub'>next period (random walk)</div></div>", unsafe_allow_html=True)
+    trend_val = method_results["Linear trend (TAF)"]
+    growth_val = method_results["Growth-rate extrapolation"]
+    naive_val = method_results["Naive (last value)"]
+
+    c1, c2, c3 = st.columns(3)
+    c1.markdown(f"<div class='metric-card'><div class='metric-label'>Trend (TAF)</div><div class='metric-value'>{trend_val:,.0f} kg</div><div class='metric-sub'>linear continuation</div></div>", unsafe_allow_html=True)
+    if not np.isnan(growth_val):
+        c2.markdown(f"<div class='metric-card'><div class='metric-label'>Growth-rate</div><div class='metric-value'>{growth_val:,.0f} kg</div><div class='metric-sub'>same % change</div></div>", unsafe_allow_html=True)
+    c3.markdown(f"<div class='metric-card'><div class='metric-label'>Naive</div><div class='metric-value'>{naive_val:,.0f} kg</div><div class='metric-sub'>last observed level</div></div>", unsafe_allow_html=True)
+
     if not np.isnan(rf_next):
-        c2.markdown(f"<div class='metric-card'><div class='metric-label'>RF out-of-fold total</div><div class='metric-value'>{rf_next:,.0f} kg</div><div class='metric-sub'>aggregated across current farms</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-card'><div class='metric-label'>Random Forest out-of-fold total</div><div class='metric-value'>{rf_next:,.0f} kg</div><div class='metric-sub'>aggregated across current farm profiles, not a temporal forecast</div></div>", unsafe_allow_html=True)
 
-    last_actual = float(period_series["production_kg"].iloc[-1])
-    delta_arima = arima_next - last_actual
-    direction_word = "increase" if delta_arima > 0 else ("decrease" if delta_arima < 0 else "no change")
-    st.markdown(f"<div class='note'>ARIMA projection indicates a {direction_word} of {abs(delta_arima):,.0f} kg relative to the latest observed period. Because the series contains only {len(period_series)} points, the ARIMA(0,1,0) forecast is by construction equal to the last observed value. The Random Forest value reported here is the sum of out-of-fold predictions on records the model did not see during training; it estimates expected total output if the next period's farms resemble the current population. Neither figure is a precise point forecast.</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='caveat'><b>Why multiple methods:</b> With only {len(period_series)} observation periods, no single time-series model can be statistically validated. ARIMA(0,1,0) collapses to a random walk. Linear trend is transparent but assumes the observed direction continues. Growth-rate and mean projections bracket the plausible range. The Random Forest value is different in kind: it aggregates out-of-fold predictions on current farm profiles and is not a temporal forecast. Report the range, not a single point, when citing results.</div>", unsafe_allow_html=True)
