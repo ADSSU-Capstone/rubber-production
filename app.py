@@ -34,7 +34,6 @@ h1, h2, h3, h4 { color: #1e3a8a; font-weight: 700; }
 .note { background: #fffbeb; border-left: 3px solid #d97706; padding: 12px 16px; border-radius: 6px; color: #78350f; font-size: 0.85rem; line-height: 1.55; margin-top: 12px; }
 .caveat { background: #fef2f2; border-left: 3px solid #dc2626; padding: 12px 16px; border-radius: 6px; color: #7f1d1d; font-size: 0.85rem; line-height: 1.55; margin-top: 12px; }
 .quality { background: #f0f9ff; border-left: 3px solid #0284c7; padding: 12px 16px; border-radius: 6px; color: #0c4a6e; font-size: 0.85rem; line-height: 1.55; margin-top: 12px; }
-.method { background: #f8fafc; border-left: 3px solid #64748b; padding: 10px 14px; border-radius: 6px; color: #334155; font-size: 0.82rem; line-height: 1.5; margin-top: 6px; }
 .sidebar-title { color: #1e3a8a; margin: 0; font-size: 1.05rem; font-weight: 800; }
 .sidebar-sub { color: #64748b; font-size: 0.72rem; margin-top: 2px; }
 .stTabs [data-baseweb="tab-list"] { gap: 10px; background: transparent; border-bottom: none; padding: 4px 0; }
@@ -55,59 +54,40 @@ BARANGAY_ALIASES = {
     "consuelo": "Consuelo", "imelda": "Imelda",
 }
 
-
 def _clean_text(val):
-    if pd.isna(val):
-        return None
+    if pd.isna(val): return None
     s = str(val).strip()
     s = " ".join(s.split())
     s = "".join(ch for ch in s if ch.isprintable())
-    if s == "" or s.lower() in {"nan", "none", "n/a", "/", "-"}:
-        return None
+    if s == "" or s.lower() in {"nan", "none", "n/a", "/", "-"}: return None
     return s
 
-
 def _clean_tick(val):
-    if pd.isna(val):
-        return None
+    if pd.isna(val): return None
     s = str(val).strip()
-    if s == "/" or s.lower() in {"yes", "y", "x"}:
-        return "yes"
+    if s == "/" or s.lower() in {"yes", "y", "x"}: return "yes"
     return _clean_text(val)
 
-
 def _clean_number(val):
-    if pd.isna(val):
-        return np.nan
-    if isinstance(val, (int, float, np.integer, np.floating)):
-        return float(val)
+    if pd.isna(val): return np.nan
+    if isinstance(val, (int, float, np.integer, np.floating)): return float(val)
     s = str(val).replace(",", "").strip()
-    if s == "" or s.lower() in {"nan", "none", "/", "-"}:
-        return np.nan
-    try:
-        return float(s)
-    except ValueError:
-        return np.nan
-
+    if s == "" or s.lower() in {"nan", "none", "/", "-"}: return np.nan
+    try: return float(s)
+    except ValueError: return np.nan
 
 def _normalize_barangay(name):
-    if name is None:
-        return None
+    if name is None: return None
     key = name.strip().lower().replace("  ", " ")
-    if key in BARANGAY_ALIASES:
-        return BARANGAY_ALIASES[key]
+    if key in BARANGAY_ALIASES: return BARANGAY_ALIASES[key]
     return BARANGAY_ALIASES.get(key.replace(" ", ""), name.strip())
 
-
 def _normalize_variety(name):
-    if name is None:
-        return "Unknown"
+    if name is None: return "Unknown"
     s = " ".join(str(name).strip().split())
     for v in VALID_VARIETIES:
-        if s.upper().replace(" ", "") == v.upper().replace(" ", ""):
-            return v
+        if s.upper().replace(" ", "") == v.upper().replace(" ", ""): return v
     return "Unknown"
-
 
 EXAMPLE_DATA = """July 2024|Sahay|Jerry||San Andres|RRIM 600|480||2000
 July 2024|Sagrado|Improso||San Andres|RRIM 600|35000||5000
@@ -359,13 +339,9 @@ January 2025|Ibarra|Roberto|C|San Teodoro|RRIM 600|1200||
 January 2025|Puspos|Solomon||San Teodoro|RRIM 600|500||200
 January 2025|Diacoma|||San Teodoro|RRIM 600|1500||500"""
 
-
 def parse_example():
-    df = pd.read_csv(
-        io.StringIO(EXAMPLE_DATA), sep="|", header=None, dtype=str, keep_default_na=False,
-        names=["period", "last", "first", "middle", "farm_barangay", "variety",
-               "no_of_trees", "cropping_density", "market_volume"],
-    )
+    df = pd.read_csv(io.StringIO(EXAMPLE_DATA), sep="|", header=None, dtype=str, keep_default_na=False,
+                     names=["period", "last", "first", "middle", "farm_barangay", "variety", "no_of_trees", "cropping_density", "market_volume"])
     for col in ["no_of_trees", "cropping_density", "market_volume"]:
         df[col] = df[col].apply(_clean_number)
     df["annual_volume"] = np.nan
@@ -373,62 +349,43 @@ def parse_example():
     df["monocrop"] = "yes"
     return df
 
-
 def parse_excel(upload):
     xls = pd.ExcelFile(upload)
-    skip_terms = ["Province", "Municipality", "Commodity", "No.", "Prepared", "Noted",
-                  "MELYDEN", "ENDRENIE", "ENGR", "Last Name", "Sexual", "Asexual",
-                  "Intercrop", "Monocrop", "Complete Name"]
+    skip_terms = ["Province", "Municipality", "Commodity", "No.", "Prepared", "Noted", "MELYDEN", "ENDRENIE", "ENGR", "Last Name", "Sexual", "Asexual", "Intercrop", "Monocrop", "Complete Name"]
     rows = []
     for sheet in xls.sheet_names:
         raw = pd.read_excel(upload, sheet_name=sheet, header=None)
         period = None
         for _, row in raw.iterrows():
-            if len(row) < 24:
-                continue
+            if len(row) < 24: continue
             first = row.iloc[0]
-            if pd.isna(first):
-                continue
+            if pd.isna(first): continue
             fs = str(first).strip()
             if fs.startswith("Period"):
                 period = " ".join(fs.split(":")[-1].strip().split())
                 continue
-            if any(k.lower() in fs.lower() for k in skip_terms):
-                continue
-            if fs.startswith("="):
-                continue
-            try:
-                int(float(fs))
-            except ValueError:
-                continue
-            if not period:
-                continue
+            if any(k.lower() in fs.lower() for k in skip_terms): continue
+            if fs.startswith("="): continue
+            try: int(float(fs))
+            except ValueError: continue
+            if not period: continue
             rows.append({
-                "period": period,
-                "last": _clean_text(row.iloc[2]),
-                "first": _clean_text(row.iloc[3]),
-                "middle": _clean_text(row.iloc[4]),
-                "farm_barangay": _clean_text(row.iloc[7]),
-                "variety": _clean_text(row.iloc[10]),
-                "no_of_trees": _clean_number(row.iloc[13]),
-                "annual_volume": _clean_number(row.iloc[15]),
-                "intercrop": _clean_tick(row.iloc[17]),
-                "monocrop": _clean_tick(row.iloc[18]),
-                "cropping_density": _clean_number(row.iloc[20]),
+                "period": period, "last": _clean_text(row.iloc[2]), "first": _clean_text(row.iloc[3]),
+                "middle": _clean_text(row.iloc[4]), "farm_barangay": _clean_text(row.iloc[7]),
+                "variety": _clean_text(row.iloc[10]), "no_of_trees": _clean_number(row.iloc[13]),
+                "annual_volume": _clean_number(row.iloc[15]), "intercrop": _clean_tick(row.iloc[17]),
+                "monocrop": _clean_tick(row.iloc[18]), "cropping_density": _clean_number(row.iloc[20]),
                 "market_volume": _clean_number(row.iloc[23]),
             })
     return pd.DataFrame(rows)
-
 
 def parse_csv(upload):
     df = pd.read_csv(upload, dtype=str, keep_default_na=False)
     df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
     rename_map = {
-        "last_name": "last", "given_name": "first", "middle_name": "middle",
-        "barangay": "farm_barangay", "farm_address": "farm_barangay",
-        "trees": "no_of_trees", "tree_count": "no_of_trees",
-        "volume": "market_volume", "density": "cropping_density",
-        "intercrop_flag": "intercrop", "monocrop_flag": "monocrop",
+        "last_name": "last", "given_name": "first", "middle_name": "middle", "barangay": "farm_barangay",
+        "farm_address": "farm_barangay", "trees": "no_of_trees", "tree_count": "no_of_trees",
+        "volume": "market_volume", "density": "cropping_density", "intercrop_flag": "intercrop", "monocrop_flag": "monocrop",
     }
     df = df.rename(columns=rename_map)
     for col in ["no_of_trees", "annual_volume", "cropping_density", "market_volume"]:
@@ -437,51 +394,41 @@ def parse_csv(upload):
         df[col] = df[col].apply(_clean_tick) if col in df.columns else None
     return df
 
-
 def clean_data(df):
     for col in ["last", "first", "middle", "farm_barangay", "variety"]:
-        if col in df.columns:
-            df[col] = df[col].apply(_clean_text)
+        if col in df.columns: df[col] = df[col].apply(_clean_text)
     df["farm_barangay"] = df["farm_barangay"].apply(_normalize_barangay)
     df["variety"] = df["variety"].apply(_normalize_variety)
+    
     n_before_brgy = len(df)
     df = df[df["farm_barangay"].isin(VALID_BARANGAYS)].copy()
     n_dropped_brgy = n_before_brgy - len(df)
     n_before_trees = len(df)
     df = df.dropna(subset=["no_of_trees"]).reset_index(drop=True)
     n_dropped_trees = n_before_trees - len(df)
-    df["farmer_name"] = (
-        df["last"].fillna("") + ", " + df["first"].fillna("") + " " + df["middle"].fillna("")
-    ).str.replace(r"\s+", " ", regex=True).str.strip(", ")
-    df["cropping_system"] = np.where(
-        df["monocrop"].notna(), "Monocrop",
-        np.where(df["intercrop"].notna(), "Intercrop", "Unknown"),
-    )
+    
+    df["farmer_name"] = (df["last"].fillna("") + ", " + df["first"].fillna("") + " " + df["middle"].fillna("")).str.replace(r"\s+", " ", regex=True).str.strip(", ")
+    df["cropping_system"] = np.where(df["monocrop"].notna(), "Monocrop", np.where(df["intercrop"].notna(), "Intercrop", "Unknown"))
     df["production_kg"] = df["market_volume"].fillna(df["annual_volume"])
-    return df, {
-        "dropped_barangay": n_dropped_brgy,
-        "dropped_trees": n_dropped_trees,
-        "kept": len(df),
-    }
-
+    
+    # THE FIX: Add a datetime column to force correct chronological sorting
+    df["period_date"] = pd.to_datetime(df["period"], format="%B %Y", errors="coerce")
+    
+    return df, {"dropped_barangay": n_dropped_brgy, "dropped_trees": n_dropped_trees, "kept": len(df)}
 
 def build_features(frame):
     f = frame.dropna(subset=["production_kg", "no_of_trees"]).copy()
     f = f[f["production_kg"] > 0]
-    if len(f) < 5:
-        return f, None, None
+    if len(f) < 5: return f, None, None
     le_v, le_b, le_c = LabelEncoder(), LabelEncoder(), LabelEncoder()
     f["variety_enc"] = le_v.fit_transform(f["variety"].fillna("Unknown"))
     f["brgy_enc"] = le_b.fit_transform(f["farm_barangay"].fillna("Unknown"))
     f["cs_enc"] = le_c.fit_transform(f["cropping_system"])
     X = f[["no_of_trees", "variety_enc", "brgy_enc", "cs_enc", "cropping_density"]].fillna(0)
-    y = f["production_kg"].values
-    return f, X, y
-
+    return f, X, f["production_kg"].values
 
 def compute_metrics(y_true, y_pred):
-    y_true = np.asarray(y_true, dtype=float)
-    y_pred = np.asarray(y_pred, dtype=float)
+    y_true, y_pred = np.asarray(y_true, dtype=float), np.asarray(y_pred, dtype=float)
     rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
     mae = float(mean_absolute_error(y_true, y_pred))
     mask = y_true > 0
@@ -489,87 +436,51 @@ def compute_metrics(y_true, y_pred):
     r2 = float(r2_score(y_true, y_pred)) if len(y_true) > 1 else np.nan
     return {"RMSE": rmse, "MAE": mae, "MAPE (%)": mape, "R2": r2, "MAPE_n": int(mask.sum())}
 
-
 def forecast_all_methods(values, periods):
-    """Return dict of method name -> projected next-period value."""
-    vals = np.asarray(values, dtype=float)
-    n = len(vals)
-    last = float(vals[-1])
-    results = {}
-
+    vals, n = np.asarray(values, dtype=float), len(values)
+    last, results = float(vals[-1]), {}
     results["Naive (last value)"] = last
     results["Mean of observed periods"] = float(vals.mean())
-
-    if n >= 2 and vals[-2] > 0:
-        ratio = vals[-1] / vals[-2]
-        results["Growth-rate extrapolation"] = float(vals[-1] * ratio)
-    else:
-        results["Growth-rate extrapolation"] = np.nan
-
+    results["Growth-rate extrapolation"] = float(vals[-1] * (vals[-1] / vals[-2])) if n >= 2 and vals[-2] > 0 else np.nan
     if n >= 2:
-        t_idx = np.arange(n).reshape(-1, 1)
-        lr = LinearRegression().fit(t_idx, vals)
+        lr = LinearRegression().fit(np.arange(n).reshape(-1, 1), vals)
         results["Linear trend (TAF)"] = float(lr.predict([[n]])[0])
-    else:
-        results["Linear trend (TAF)"] = np.nan
-
+    else: results["Linear trend (TAF)"] = np.nan
     try:
         am = ARIMA(vals, order=(0, 1, 0)).fit()
         results["ARIMA (0,1,0)"] = float(am.forecast(steps=1)[0])
-    except Exception:
-        results["ARIMA (0,1,0)"] = last
-
+    except Exception: results["ARIMA (0,1,0)"] = last
     return results
-
 
 def style_plot(fig, height=400):
     fig.update_layout(
         height=height, plot_bgcolor="white", paper_bgcolor="white",
         font=dict(family="Plus Jakarta Sans", color="#0f172a", size=12),
-        margin=dict(l=20, r=20, t=70, b=20),
-        title=dict(y=0.95, x=0.5, xanchor="center", yanchor="top"),
-        xaxis=dict(gridcolor="#e2e8f0", linecolor="#e2e8f0"),
-        yaxis=dict(gridcolor="#e2e8f0", linecolor="#e2e8f0"),
+        margin=dict(l=20, r=20, t=70, b=20), title=dict(y=0.95, x=0.5, xanchor="center", yanchor="top"),
+        xaxis=dict(gridcolor="#e2e8f0", linecolor="#e2e8f0"), yaxis=dict(gridcolor="#e2e8f0", linecolor="#e2e8f0"),
         legend=dict(bgcolor="rgba(0,0,0,0)"),
     )
     return fig
 
+C_PRIMARY, C_ACCENT, C_TERTIARY = "#1e3a8a", "#d97706", "#0ea5e9"
 
-C_PRIMARY = "#1e3a8a"
-C_ACCENT = "#d97706"
-C_TERTIARY = "#0ea5e9"
-
-st.sidebar.markdown("""
-<div style="padding: 4px 0 18px 0;">
-    <p class="sidebar-title">Rubber Production</p>
-    <p class="sidebar-sub">Bunawan, Agusan del Sur</p>
-</div>
-""", unsafe_allow_html=True)
-
+st.sidebar.markdown("""<div style="padding: 4px 0 18px 0;"><p class="sidebar-title">Rubber Production</p><p class="sidebar-sub">Bunawan, Agusan del Sur</p></div>""", unsafe_allow_html=True)
 uploaded = st.sidebar.file_uploader("Upload dataset (CSV or Excel)", type=["csv", "xlsx", "xls"])
 use_example = st.sidebar.checkbox("Use example dataset (if no upload)", value=True)
 
 if uploaded is not None:
-    try:
-        raw = parse_csv(uploaded) if uploaded.name.lower().endswith(".csv") else parse_excel(uploaded)
-    except Exception as exc:
-        st.error(f"Could not read the uploaded file: {exc}")
-        st.stop()
-elif use_example:
-    raw = parse_example()
-else:
-    st.info("Upload a dataset in the sidebar, or enable the example dataset to view the analysis.")
-    st.stop()
+    try: raw = parse_csv(uploaded) if uploaded.name.lower().endswith(".csv") else parse_excel(uploaded)
+    except Exception as exc: st.error(f"Could not read the uploaded file: {exc}"); st.stop()
+elif use_example: raw = parse_example()
+else: st.info("Upload a dataset in the sidebar, or enable the example dataset to view the analysis."); st.stop()
 
 df, quality = clean_data(raw)
-
-if len(df) == 0:
-    st.warning("No usable records were found after cleaning and filtering.")
-    st.stop()
+if len(df) == 0: st.warning("No usable records were found."); st.stop()
 
 st.sidebar.markdown("---")
 
-periods_all = sorted(df["period"].dropna().unique())
+# FIX: Sort periods chronologically for the sidebar filter
+periods_all = df.dropna(subset=["period_date"]).sort_values("period_date")["period"].unique().tolist()
 barangays_all = sorted(df["farm_barangay"].dropna().unique())
 varieties_all = sorted(df["variety"].dropna().unique())
 
@@ -577,21 +488,13 @@ sel_periods = st.sidebar.multiselect("Period", periods_all, default=periods_all)
 sel_barangays = st.sidebar.multiselect("Barangay", barangays_all, default=barangays_all)
 sel_varieties = st.sidebar.multiselect("Variety", varieties_all, default=varieties_all)
 
-d = df[
-    df["period"].isin(sel_periods)
-    & df["farm_barangay"].isin(sel_barangays)
-    & df["variety"].isin(sel_varieties)
-].copy()
-
-if len(d) == 0:
-    st.warning("No records match the current filters.")
-    st.stop()
+d = df[df["period"].isin(sel_periods) & df["farm_barangay"].isin(sel_barangays) & df["variety"].isin(sel_varieties)].copy()
+if len(d) == 0: st.warning("No records match the current filters."); st.stop()
 
 tabs = st.tabs(["Production Profile", "Trends", "Variable Relationships", "Model Accuracy", "Forecast"])
 
 with tabs[0]:
-    n_farmers = int(d["farmer_name"].nunique())
-    n_records = len(d)
+    n_farmers, n_records = int(d["farmer_name"].nunique()), len(d)
     n_with_volume = int(d["production_kg"].notna().sum())
     total_trees = int(d["no_of_trees"].sum(skipna=True))
     total_prod = float(d["production_kg"].sum(skipna=True))
@@ -604,45 +507,32 @@ with tabs[0]:
     c3.markdown(f"<div class='metric-card'><div class='metric-label'>Total production</div><div class='metric-value'>{total_prod:,.0f} kg</div><div class='metric-sub'>{n_with_volume} with volume</div></div>", unsafe_allow_html=True)
     c4.markdown(f"<div class='metric-card'><div class='metric-label'>Avg per farmer</div><div class='metric-value'>{avg_per_farmer:,.1f} kg</div><div class='metric-sub'>total / farmer count</div></div>", unsafe_allow_html=True)
 
-    st.markdown(f"<div class='quality'>Data quality: {quality['kept']} records retained; {quality['dropped_barangay']} dropped by barangay whitelist; {quality['dropped_trees']} dropped for missing tree count. Among the {n_records} retained, {n_with_volume} have a recorded market volume. The mean recorded volume is <b>{avg_per_recorded:,.1f} kg</b>; the total divided by farmer count is <b>{avg_per_farmer:,.1f} kg</b>. Both are shown because the two denominators answer different questions.</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='quality'>Data quality: {quality['kept']} retained; {quality['dropped_barangay']} dropped by barangay whitelist; {quality['dropped_trees']} dropped for missing tree count. Among the {n_records} retained, {n_with_volume} have a recorded market volume. Mean recorded volume: <b>{avg_per_recorded:,.1f} kg</b>; total / farmer count: <b>{avg_per_farmer:,.1f} kg</b>.</div>", unsafe_allow_html=True)
 
     col1, col2 = st.columns([1.3, 1])
     with col1:
-        p_agg = d.groupby("period", as_index=False).agg(
-            production=("production_kg", "sum"), farmers=("farmer_name", "nunique"))
+        p_agg = d.groupby("period", as_index=False).agg(production=("production_kg", "sum"), farmers=("farmer_name", "nunique"), period_date=("period_date", "first")).sort_values("period_date")
         fig = px.bar(p_agg, x="period", y="production", text_auto=".2s", color_discrete_sequence=[C_PRIMARY])
-        fig.update_traces(textposition="outside")
-        fig.update_layout(title="Total production per period", xaxis_title="", yaxis_title="Production (kg)")
+        fig.update_traces(textposition="outside"); fig.update_layout(title="Total production per period", xaxis_title="", yaxis_title="Production (kg)")
         st.plotly_chart(style_plot(fig), use_container_width=True)
     with col2:
-        var_counts = d[d["variety"] != "Unknown"]["variety"].value_counts().reset_index()
-        var_counts.columns = ["variety", "count"]
+        var_counts = d[d["variety"] != "Unknown"]["variety"].value_counts().reset_index(); var_counts.columns = ["variety", "count"]
         if len(var_counts) > 0:
-            fig = px.pie(var_counts, names="variety", values="count", hole=0.55,
-                         color_discrete_sequence=[C_PRIMARY, C_ACCENT, C_TERTIARY])
-            fig.update_layout(title="Variety distribution")
-            st.plotly_chart(style_plot(fig), use_container_width=True)
+            fig = px.pie(var_counts, names="variety", values="count", hole=0.55, color_discrete_sequence=[C_PRIMARY, C_ACCENT, C_TERTIARY])
+            fig.update_layout(title="Variety distribution"); st.plotly_chart(style_plot(fig), use_container_width=True)
 
-    b_agg = (d.groupby("farm_barangay", as_index=False)
-             .agg(production=("production_kg", "sum"), farmers=("farmer_name", "nunique"))
-             .sort_values("production", ascending=False))
-    fig = px.bar(b_agg, x="farm_barangay", y="production", color="production",
-                 color_continuous_scale=["#dbeafe", C_PRIMARY, "#1e293b"], text_auto=".2s")
+    b_agg = d.groupby("farm_barangay", as_index=False).agg(production=("production_kg", "sum"), farmers=("farmer_name", "nunique")).sort_values("production", ascending=False)
+    fig = px.bar(b_agg, x="farm_barangay", y="production", color="production", color_continuous_scale=["#dbeafe", C_PRIMARY, "#1e293b"], text_auto=".2s")
     fig.update_layout(title="Production per barangay", xaxis_title="", yaxis_title="Production (kg)", coloraxis_showscale=False)
     st.plotly_chart(style_plot(fig), use_container_width=True)
-
     if len(b_agg) > 0:
-        top = b_agg.iloc[0]
-        st.markdown(f"<div class='note'>Highest producing barangay is <b>{top['farm_barangay']}</b> with {top['production']:,.0f} kg from {int(top['farmers'])} farmer records.</div>", unsafe_allow_html=True)
+        top = b_agg.iloc[0]; st.markdown(f"<div class='note'>Highest producing barangay is <b>{top['farm_barangay']}</b> with {top['production']:,.0f} kg from {int(top['farmers'])} farmer records.</div>", unsafe_allow_html=True)
 
 with tabs[1]:
-    p_agg = (d.groupby("period", as_index=False)
-             .agg(production=("production_kg", "sum"), trees=("no_of_trees", "sum"), farmers=("farmer_name", "nunique"))
-             .sort_values("period"))
+    # FIX: Sort by period_date to fix the backwards line chart
+    p_agg = d.groupby("period", as_index=False).agg(production=("production_kg", "sum"), trees=("no_of_trees", "sum"), farmers=("farmer_name", "nunique"), period_date=("period_date", "first")).sort_values("period_date")
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=p_agg["period"], y=p_agg["production"], mode="lines+markers",
-                             line=dict(color=C_PRIMARY, width=3), marker=dict(size=12, color=C_ACCENT),
-                             fill="tozeroy", fillcolor="rgba(30,58,138,0.10)", name="Production (kg)"))
+    fig.add_trace(go.Scatter(x=p_agg["period"], y=p_agg["production"], mode="lines+markers", line=dict(color=C_PRIMARY, width=3), marker=dict(size=12, color=C_ACCENT), fill="tozeroy", fillcolor="rgba(30,58,138,0.10)", name="Production (kg)"))
     fig.update_layout(title="Production direction across periods", xaxis_title="", yaxis_title="Production (kg)")
     st.plotly_chart(style_plot(fig, height=360), use_container_width=True)
 
@@ -655,51 +545,33 @@ with tabs[1]:
     col1, col2 = st.columns(2)
     with col1:
         cs = d.groupby("cropping_system", as_index=False)["production_kg"].sum()
-        fig = px.bar(cs, x="cropping_system", y="production_kg", color="cropping_system",
-                     color_discrete_map={"Monocrop": C_PRIMARY, "Intercrop": C_ACCENT, "Unknown": "#94a3b8"})
+        fig = px.bar(cs, x="cropping_system", y="production_kg", color="cropping_system", color_discrete_map={"Monocrop": C_PRIMARY, "Intercrop": C_ACCENT, "Unknown": "#94a3b8"})
         fig.update_layout(title="Production by cropping system", xaxis_title="", yaxis_title="Production (kg)", showlegend=False)
         st.plotly_chart(style_plot(fig, height=340), use_container_width=True)
     with col2:
         sc = d.dropna(subset=["no_of_trees", "production_kg"])
         if len(sc) > 0:
-            fig = px.scatter(sc, x="no_of_trees", y="production_kg", color="period",
-                             color_discrete_sequence=[C_PRIMARY, C_ACCENT], opacity=0.7)
+            fig = px.scatter(sc, x="no_of_trees", y="production_kg", color="period", color_discrete_sequence=[C_PRIMARY, C_ACCENT], opacity=0.7)
             fig.update_layout(title="Trees vs production", xaxis_title="Number of trees", yaxis_title="Production (kg)")
             st.plotly_chart(style_plot(fig, height=340), use_container_width=True)
 
     top10 = d.groupby("farm_barangay", as_index=False)["production_kg"].sum().sort_values("production_kg", ascending=False).head(10)
-    fig = px.bar(top10, x="production_kg", y="farm_barangay", orientation="h", color="production_kg",
-                 color_continuous_scale=["#dbeafe", C_PRIMARY, "#1e293b"])
-    fig.update_layout(title="Top barangays by production", xaxis_title="Production (kg)", yaxis_title="",
-                      coloraxis_showscale=False, yaxis=dict(autorange="reversed"))
+    fig = px.bar(top10, x="production_kg", y="farm_barangay", orientation="h", color="production_kg", color_continuous_scale=["#dbeafe", C_PRIMARY, "#1e293b"])
+    fig.update_layout(title="Top barangays by production", xaxis_title="Production (kg)", yaxis_title="", coloraxis_showscale=False, yaxis=dict(autorange="reversed"))
     st.plotly_chart(style_plot(fig, height=400), use_container_width=True)
 
 with tabs[2]:
     st.markdown("### Production by variety")
-    var_agg = (d.groupby("variety", as_index=False)
-               .agg(production=("production_kg", "sum"), farmers=("farmer_name", "nunique"),
-                    avg_yield=("production_kg", "mean")).sort_values("production", ascending=False))
-    st.dataframe(var_agg.rename(columns={"variety": "Variety", "production": "Total production (kg)",
-                                          "farmers": "Farmers", "avg_yield": "Average yield (kg)"})
-                 .style.format({"Total production (kg)": "{:,.0f}", "Average yield (kg)": "{:,.1f}"}),
-                 use_container_width=True, hide_index=True)
+    var_agg = d.groupby("variety", as_index=False).agg(production=("production_kg", "sum"), farmers=("farmer_name", "nunique"), avg_yield=("production_kg", "mean")).sort_values("production", ascending=False)
+    st.dataframe(var_agg.rename(columns={"variety": "Variety", "production": "Total production (kg)", "farmers": "Farmers", "avg_yield": "Average yield (kg)"}).style.format({"Total production (kg)": "{:,.0f}", "Average yield (kg)": "{:,.1f}"}), use_container_width=True, hide_index=True)
 
     st.markdown("### Production by cropping system")
-    cs_agg = d.groupby("cropping_system", as_index=False).agg(
-        production=("production_kg", "sum"), farmers=("farmer_name", "nunique"), avg_yield=("production_kg", "mean"))
-    st.dataframe(cs_agg.rename(columns={"cropping_system": "Cropping system", "production": "Total production (kg)",
-                                        "farmers": "Farmers", "avg_yield": "Average yield (kg)"})
-                 .style.format({"Total production (kg)": "{:,.0f}", "Average yield (kg)": "{:,.1f}"}),
-                 use_container_width=True, hide_index=True)
+    cs_agg = d.groupby("cropping_system", as_index=False).agg(production=("production_kg", "sum"), farmers=("farmer_name", "nunique"), avg_yield=("production_kg", "mean"))
+    st.dataframe(cs_agg.rename(columns={"cropping_system": "Cropping system", "production": "Total production (kg)", "farmers": "Farmers", "avg_yield": "Average yield (kg)"}).style.format({"Total production (kg)": "{:,.0f}", "Average yield (kg)": "{:,.1f}"}), use_container_width=True, hide_index=True)
 
     st.markdown("### Production by barangay")
-    brgy_agg = (d.groupby("farm_barangay", as_index=False)
-                .agg(production=("production_kg", "sum"), farmers=("farmer_name", "nunique"),
-                     avg_yield=("production_kg", "mean")).sort_values("production", ascending=False))
-    st.dataframe(brgy_agg.rename(columns={"farm_barangay": "Barangay", "production": "Total production (kg)",
-                                          "farmers": "Farmers", "avg_yield": "Average yield (kg)"})
-                 .style.format({"Total production (kg)": "{:,.0f}", "Average yield (kg)": "{:,.1f}"}),
-                 use_container_width=True, hide_index=True)
+    brgy_agg = d.groupby("farm_barangay", as_index=False).agg(production=("production_kg", "sum"), farmers=("farmer_name", "nunique"), avg_yield=("production_kg", "mean")).sort_values("production", ascending=False)
+    st.dataframe(brgy_agg.rename(columns={"farm_barangay": "Barangay", "production": "Total production (kg)", "farmers": "Farmers", "avg_yield": "Average yield (kg)"}).style.format({"Total production (kg)": "{:,.0f}", "Average yield (kg)": "{:,.1f}"}), use_container_width=True, hide_index=True)
 
     corr_frame = d.dropna(subset=["no_of_trees", "production_kg", "cropping_density"])
     if len(corr_frame) > 2:
@@ -709,35 +581,26 @@ with tabs[2]:
 
     crosstab = pd.crosstab(d["farm_barangay"], d["cropping_system"])
     if crosstab.size > 0:
-        st.markdown("### Barangay by cropping system")
-        st.dataframe(crosstab, use_container_width=True)
+        st.markdown("### Barangay by cropping system"); st.dataframe(crosstab, use_container_width=True)
 
 with tabs[3]:
     feat, X, y = build_features(d)
-    if X is None or len(feat) < 10:
-        st.warning("Not enough records after filtering to fit the models. At least 10 records with positive production volume are required.")
-        st.stop()
+    if X is None or len(feat) < 10: st.warning("Not enough records after filtering to fit the models."); st.stop()
 
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
-
-    rf = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1)
-    rf_pred = cross_val_predict(rf, X, y, cv=kf)
+    rf_pred = cross_val_predict(RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1), X, y, cv=kf)
     rf_m = compute_metrics(y, rf_pred)
-
-    lr = LinearRegression()
-    lr_pred = cross_val_predict(lr, X, y, cv=kf)
+    lr_pred = cross_val_predict(LinearRegression(), X, y, cv=kf)
     lr_m = compute_metrics(y, lr_pred)
 
-    period_series = d.groupby("period", as_index=False)["production_kg"].sum().sort_values("period")
+    period_series = d.groupby("period", as_index=False).agg(production_kg=("production_kg", "sum"), period_date=("period_date", "first")).sort_values("period_date")
     arima_m = {"RMSE": np.nan, "MAE": np.nan, "MAPE (%)": np.nan, "R2": np.nan, "MAPE_n": 0}
     if len(period_series) >= 2:
         try:
             am = ARIMA(period_series["production_kg"].values, order=(0, 1, 0)).fit()
-            fitted = am.fittedvalues
-            actual_aligned = period_series["production_kg"].values[-len(fitted):]
+            fitted = am.fittedvalues; actual_aligned = period_series["production_kg"].values[-len(fitted):]
             arima_m = compute_metrics(actual_aligned, fitted)
-        except Exception:
-            pass
+        except Exception: pass
 
     m1, m2, m3, m4 = st.columns(4)
     m1.markdown(f"<div class='metric-card'><div class='metric-label'>RMSE</div><div class='metric-value'>{rf_m['RMSE']:,.2f}</div><div class='metric-sub'>Random Forest</div></div>", unsafe_allow_html=True)
@@ -751,48 +614,31 @@ with tabs[3]:
         {"Model": "ARIMA (0,1,0)", **{k: arima_m[k] for k in ["RMSE", "MAE", "MAPE (%)", "R2"]}},
     ])
     st.markdown("### Performance summary")
-    st.dataframe(metrics_df.style.format({"RMSE": "{:,.2f}", "MAE": "{:,.2f}", "MAPE (%)": "{:,.2f}", "R2": "{:.3f}"}),
-                 use_container_width=True, hide_index=True)
+    st.dataframe(metrics_df.style.format({"RMSE": "{:,.2f}", "MAE": "{:,.2f}", "MAPE (%)": "{:,.2f}", "R2": "{:.3f}"}), use_container_width=True, hide_index=True)
 
     long_metrics = metrics_df.melt(id_vars="Model", var_name="Metric", value_name="Value").dropna(subset=["Value"])
-    fig = px.bar(long_metrics, x="Metric", y="Value", color="Model", barmode="group", text_auto=".2f",
-                 color_discrete_map={"Random Forest": C_PRIMARY, "Linear Regression": C_TERTIARY, "ARIMA (0,1,0)": C_ACCENT})
-    fig.update_layout(title="Metric comparison across models")
-    st.plotly_chart(style_plot(fig, height=380), use_container_width=True)
+    fig = px.bar(long_metrics, x="Metric", y="Value", color="Model", barmode="group", text_auto=".2f", color_discrete_map={"Random Forest": C_PRIMARY, "Linear Regression": C_TERTIARY, "ARIMA (0,1,0)": C_ACCENT})
+    fig.update_layout(title="Metric comparison across models"); st.plotly_chart(style_plot(fig, height=380), use_container_width=True)
 
-    rf.fit(X, y)
-    imp = pd.DataFrame({
-        "Feature": ["No. of trees", "Variety", "Barangay", "Cropping system", "Cropping density"],
-        "Importance": rf.feature_importances_,
-    }).sort_values("Importance", ascending=True)
-    fig = px.bar(imp, x="Importance", y="Feature", orientation="h", color="Importance",
-                 color_continuous_scale=["#dbeafe", C_PRIMARY, "#1e293b"])
-    fig.update_layout(title="Random Forest feature importance", coloraxis_showscale=False, yaxis_title="")
-    st.plotly_chart(style_plot(fig, height=340), use_container_width=True)
+    rf = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1).fit(X, y)
+    imp = pd.DataFrame({"Feature": ["No. of trees", "Variety", "Barangay", "Cropping system", "Cropping density"], "Importance": rf.feature_importances_}).sort_values("Importance", ascending=True)
+    fig = px.bar(imp, x="Importance", y="Feature", orientation="h", color="Importance", color_continuous_scale=["#dbeafe", C_PRIMARY, "#1e293b"])
+    fig.update_layout(title="Random Forest feature importance", coloraxis_showscale=False, yaxis_title=""); st.plotly_chart(style_plot(fig, height=340), use_container_width=True)
 
     best = "Random Forest"
-    if not np.isnan(arima_m["MAPE (%)"]) and arima_m["MAPE (%)"] < rf_m["MAPE (%)"]:
-        best = "ARIMA"
-    if not np.isnan(lr_m["MAPE (%)"]) and lr_m["MAPE (%)"] < min(rf_m["MAPE (%)"], arima_m["MAPE (%)"] if not np.isnan(arima_m["MAPE (%)"]) else np.inf):
-        best = "Linear Regression"
-
-    st.markdown(f"<div class='note'>Lowest MAPE is achieved by <b>{best}</b>. Random Forest and Linear Regression use 5-fold cross-validation on {len(feat)} farm-level records; MAPE is computed only on rows with positive actual production ({rf_m['MAPE_n']} records), since percentage error is undefined at zero. ARIMA is fit on {len(period_series)} aggregated period totals and its residual error reflects the two-point series limitation. R2 is reported alongside because MAPE is sensitive to small denominators.</div>", unsafe_allow_html=True)
-
-    st.markdown(f"<div class='caveat'><b>Modeling caveat:</b> Random Forest and Linear Regression solve a <i>cross-sectional</i> prediction problem (given a farm profile, predict its production). ARIMA solves a <i>temporal</i> forecasting problem (given past period totals, predict the next). These are different tasks, so comparing their metrics directly is only partially meaningful. The Random Forest metrics are the trustworthy ones; the ARIMA row is shown for completeness.</div>", unsafe_allow_html=True)
+    if not np.isnan(arima_m["MAPE (%)"]) and arima_m["MAPE (%)"] < rf_m["MAPE (%)"]: best = "ARIMA"
+    if not np.isnan(lr_m["MAPE (%)"]) and lr_m["MAPE (%)"] < min(rf_m["MAPE (%)"], arima_m["MAPE (%)"] if not np.isnan(arima_m["MAPE (%)"]) else np.inf): best = "Linear Regression"
+    st.markdown(f"<div class='note'>Lowest MAPE is achieved by <b>{best}</b>. Random Forest and Linear Regression use 5-fold cross-validation on {len(feat)} farm-level records; MAPE is computed only on rows with positive actual production ({rf_m['MAPE_n']} records). ARIMA is fit on {len(period_series)} aggregated period totals.</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='caveat'><b>Modeling caveat:</b> Random Forest and Linear Regression solve a <i>cross-sectional</i> prediction problem. ARIMA solves a <i>temporal</i> forecasting problem. Comparing their metrics directly is only partially meaningful. The Random Forest metrics are the trustworthy ones.</div>", unsafe_allow_html=True)
 
 with tabs[4]:
-    period_series = (d.groupby("period", as_index=False)["production_kg"].sum()
-                     .sort_values("period").reset_index(drop=True))
-
-    if len(period_series) < 2:
-        st.warning("At least two periods are required to produce a forecast.")
-        st.stop()
+    # FIX: Sort the series correctly
+    period_series = d.groupby("period", as_index=False).agg(production_kg=("production_kg", "sum"), period_date=("period_date", "first")).sort_values("period_date").reset_index(drop=True)
+    if len(period_series) < 2: st.warning("At least two periods are required to produce a forecast."); st.stop()
 
     values = period_series["production_kg"].values
     periods = period_series["period"].tolist()
-    last_value = float(values[-1])
-    last_period = periods[-1]
-
+    last_value, last_period = float(values[-1]), periods[-1]
     method_results = forecast_all_methods(values, periods)
 
     feat, X, y = build_features(d)
@@ -811,64 +657,33 @@ with tabs[4]:
         "Linear trend (TAF)": "A straight line through the two periods continues linearly.",
         "ARIMA (0,1,0)": "Random walk; forecast equals the last observed value.",
     }
-    rows = []
-    for name, val in method_results.items():
-        rows.append({"Method": name, "Projection (kg)": val, "Assumption": assumption_map.get(name, "")})
-    methods_df = pd.DataFrame(rows)
-    st.dataframe(methods_df.style.format({"Projection (kg)": "{:,.0f}"}),
-                 use_container_width=True, hide_index=True)
+    rows = [{"Method": name, "Projection (kg)": val, "Assumption": assumption_map.get(name, "")} for name, val in method_results.items()]
+    st.dataframe(pd.DataFrame(rows).style.format({"Projection (kg)": "{:,.0f}"}), use_container_width=True, hide_index=True)
 
     valid = [v for v in method_results.values() if not np.isnan(v)]
     if valid:
-        st.markdown(f"<div class='note'>Time-series projections range from <b>{min(valid):,.0f} kg</b> to <b>{max(valid):,.0f} kg</b> across the five methods. The spread is the honest measure of uncertainty: with only {len(period_series)} observation periods, no method can resolve seasonality, and none can be validated by cross-validation on such a short series. Report the range, not a single point.</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='note'>Time-series projections range from <b>{min(valid):,.0f} kg</b> to <b>{max(valid):,.0f} kg</b> across the five methods. The spread is the honest measure of uncertainty. Report the range, not a single point.</div>", unsafe_allow_html=True)
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=periods, y=values, mode="lines+markers", name="Actual",
-                             line=dict(color=C_PRIMARY, width=4), marker=dict(size=14)))
-    projection_colors = {
-        "Naive (last value)": "#64748b",
-        "Mean of observed periods": "#14b8a6",
-        "Growth-rate extrapolation": "#8b5cf6",
-        "Linear trend (TAF)": C_ACCENT,
-        "ARIMA (0,1,0)": "#ef4444",
-    }
-    projection_dash = {
-        "Naive (last value)": "longdash",
-        "Mean of observed periods": "longdash",
-        "Growth-rate extrapolation": "dashdot",
-        "Linear trend (TAF)": "dash",
-        "ARIMA (0,1,0)": "dot",
-    }
+    fig.add_trace(go.Scatter(x=periods, y=values, mode="lines+markers", name="Actual", line=dict(color=C_PRIMARY, width=4), marker=dict(size=14)))
+    projection_colors = {"Naive (last value)": "#64748b", "Mean of observed periods": "#14b8a6", "Growth-rate extrapolation": "#8b5cf6", "Linear trend (TAF)": C_ACCENT, "ARIMA (0,1,0)": "#ef4444"}
+    projection_dash = {"Naive (last value)": "longdash", "Mean of observed periods": "longdash", "Growth-rate extrapolation": "dashdot", "Linear trend (TAF)": "dash", "ARIMA (0,1,0)": "dot"}
     next_label = "Projected"
     for name, val in method_results.items():
-        if np.isnan(val):
-            continue
-        fig.add_trace(go.Scatter(
-            x=[last_period, next_label], y=[last_value, val],
-            mode="lines+markers", name=name,
-            line=dict(color=projection_colors[name], width=2, dash=projection_dash[name]),
-            marker=dict(size=10),
-        ))
+        if np.isnan(val): continue
+        fig.add_trace(go.Scatter(x=[last_period, next_label], y=[last_value, val], mode="lines+markers", name=name, line=dict(color=projection_colors[name], width=2, dash=projection_dash[name]), marker=dict(size=10)))
     if not np.isnan(rf_next):
-        fig.add_trace(go.Scatter(
-            x=[next_label], y=[rf_next], mode="markers", name="RF out-of-fold total",
-            marker=dict(size=18, color=C_TERTIARY, symbol="star", line=dict(width=2, color="white")),
-        ))
-    fig.update_layout(title="Production trajectory with all projection methods",
-                      xaxis_title="", yaxis_title="Production (kg)")
+        fig.add_trace(go.Scatter(x=[next_label], y=[rf_next], mode="markers", name="RF out-of-fold total", marker=dict(size=18, color=C_TERTIARY, symbol="star", line=dict(width=2, color="white"))))
+    fig.update_layout(title="Production trajectory with all projection methods", xaxis_title="", yaxis_title="Production (kg)")
     st.plotly_chart(style_plot(fig, height=500), use_container_width=True)
 
-    trend_val = method_results["Linear trend (TAF)"]
-    growth_val = method_results["Growth-rate extrapolation"]
-    naive_val = method_results["Naive (last value)"]
-
+    trend_val, growth_val, naive_val = method_results["Linear trend (TAF)"], method_results["Growth-rate extrapolation"], method_results["Naive (last value)"]
     c1, c2, c3 = st.columns(3)
-    c1.markdown(f"<div class='metric-card'><div class='metric-label'>Trend (TAF)</div><div class='metric-value'>{trend_val:,.0f} kg</div><div class='metric-sub'>linear continuation</div></div>", unsafe_allow_html=True)
-    if not np.isnan(growth_val):
-        c2.markdown(f"<div class='metric-card'><div class='metric-label'>Growth-rate</div><div class='metric-value'>{growth_val:,.0f} kg</div><div class='metric-sub'>same % change</div></div>", unsafe_allow_html=True)
+    c1.markdown(f"<div class='metric-card'><div class='metric-label'>Trend (TAF)</div><div class='metric-value'>{max(0, trend_val):,.0f} kg</div><div class='metric-sub'>linear continuation</div></div>", unsafe_allow_html=True)
+    if not np.isnan(growth_val): c2.markdown(f"<div class='metric-card'><div class='metric-label'>Growth-rate</div><div class='metric-value'>{max(0, growth_val):,.0f} kg</div><div class='metric-sub'>same % change</div></div>", unsafe_allow_html=True)
     c3.markdown(f"<div class='metric-card'><div class='metric-label'>Naive</div><div class='metric-value'>{naive_val:,.0f} kg</div><div class='metric-sub'>last observed level</div></div>", unsafe_allow_html=True)
 
     if not np.isnan(rf_next):
         st.markdown(f"<div class='metric-card'><div class='metric-label'>Random Forest out-of-fold total</div><div class='metric-value'>{rf_next:,.0f} kg</div><div class='metric-sub'>aggregated across current farm profiles, not a temporal forecast</div></div>", unsafe_allow_html=True)
 
-    st.markdown(f"<div class='caveat'><b>Why multiple methods:</b> With only {len(period_series)} observation periods, no single time-series model can be statistically validated. ARIMA(0,1,0) collapses to a random walk. Linear trend is transparent but assumes the observed direction continues. Growth-rate and mean projections bracket the plausible range. The Random Forest value is different in kind: it aggregates out-of-fold predictions on current farm profiles and is not a temporal forecast. Report the range, not a single point, when citing results.</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='caveat'><b>Why multiple methods:</b> With only {len(period_series)} observation periods, no single time-series model can be statistically validated. ARIMA(0,1,0) collapses to a random walk. Linear trend assumes the observed direction continues. Growth-rate and mean projections bracket the plausible range. Report the range, not a single point, when citing results.</div>", unsafe_allow_html=True)
